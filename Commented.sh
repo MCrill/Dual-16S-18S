@@ -109,9 +109,11 @@ percentage_filt_retained=$(echo "scale=2; $seq_count_raw / $input_count * 100" |
 echo "2,Searching for Chimeras in ${seq_count_raw} reads (${percentage_filt_retained}% retained from filtration)" > $progress_file
 echo "2,Searching for Chimeras in ${seq_count_raw} reads (${percentage_filt_retained}% retained from filtration)" >> ${log}
 
-# Chimera removal using Vsearch
+# Chimera removal using Vsearch with adjusted parameters for less rigorous removal
 vsearch --fastq_filter ".${bb_f}/${id}_${phred}_Phred.fastq" --fastq_maxee 1 --fastqout ".${bb}/${id}_filtered.fastq" >> ${log} 2>&1
-vsearch --uchime_ref ".${bb}/${id}_filtered.fastq" --db "${default_classifier}" --nonchimeras ".${bb}/${id}_nonchimeric.fastq" --chimeras ".${bb_out}/chimeras.fastq" --threads ${cores} >> ${log} 2>&1
+
+# Adjusted parameters: lower minh, higher mindiv, and higher xn
+vsearch --uchime_ref ".${bb}/${id}_filtered.fastq" --db "${default_classifier}" --nonchimeras ".${bb}/${id}_nonchimeric.fastq" --chimeras ".${bb_out}/chimeras.fastq" --threads ${cores} --minh 0.1 --mindiv 0.5 --xn 8.0 >> ${log} 2>&1
 
 # Count non-chimeric sequences
 seq_count_nonchimeric=$(grep -c '^@' ".${bb}/${id}_nonchimeric.fastq")
@@ -119,7 +121,6 @@ seq_count_nonchimeric=$(grep -c '^@' ".${bb}/${id}_nonchimeric.fastq")
 # Log and update progress for non-chimeric amplicons isolation
 echo "3,Isolating ${seq_count_nonchimeric} (partially dereplicated count) non-chimeric amplicons" > $progress_file
 echo "3,Isolating ${seq_count_nonchimeric} (partially dereplicated count) non-chimeric amplicons" >> ${log}
-
 # Map non-chimeric reads against filtered reads using Minimap2
 minimap2 -ax map-ont -t "${cores}" ".${bb}/${id}_nonchimeric.fastq" ".${bb_f}/${id}_${phred}_Phred.fastq" > ".${bb}/${id}_mapped.sam" 2>> "${log}"
 
