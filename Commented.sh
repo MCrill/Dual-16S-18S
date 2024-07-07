@@ -327,7 +327,7 @@ conda activate "${biopy}"  || { echo "${er}ERROR:${in} Please ensure config.sh c
 # Generate CON database
 stdbuf -oL kraken2-build --add-to-library ".${output_p}/CON_taxonomy_rep_seq.fasta" --db ".${output_p}/${id}_16s_${run_time}-CON" >> ${log} 2>&1
 stdbuf -oL kraken2-build --db ".${output_p}/${id}_16s_${run_time}-CON" --download-taxonomy >> ${log} 2>&1
-stdbuf -oL kraken2-build --db ".${output_p}/${id}_16s_${run_time}-CON" --kmer-len 15 --minimizer-len 10 --minimizer-spaces 2 --threads ${cores} --build >> ${log} 2>&1 || { sleep 5; echo "###failed here: Kraken 16s database creation###" >> "${log}"; exit 1; }
+stdbuf -oL kraken2-build --db ".${output_p}/${id}_16s_${run_time}-CON" --kmer-len 35 --minimizer-len 31 --minimizer-spaces 6 --threads ${cores} --build >> ${log} 2>&1 || { sleep 5; echo "###failed here: Kraken 16s database creation###" >> "${log}"; exit 1; }
 
 # Classify 16S RAW Data with increased confidence and minimum hit groups
 stdbuf -oL kraken2 --db ".${output_p}/${id}_16s_${run_time}-CON" \
@@ -339,12 +339,24 @@ stdbuf -oL kraken2 --db ".${output_p}/${id}_16s_${run_time}-CON" \
   ".${output_s}/${id}_16s_bin.fasta" \
   >> ${log} 2>&1 || { sleep 5; echo "###failed here: Kraken matching raw and 16s con data ###" >> "${log}"; exit 1; }
 
-# Filter out problematic species from the Kraken2 report
+# Check the Kraken report before filtering
+if [ ! -s ".${output_p}/kraken_report_16s.txt" ]; then
+  echo "###Kraken report is empty. No reads classified###" >> ${log}
+  exit 1
+fi
+
+# Filter out problematic species from the Kraken2 report less aggressively
 grep -v "Puccinia suzutake" ".${output_p}/kraken_report_16s.txt" | grep -v "Pseudomonas amygdali" > ".${output_p}/kraken_report_16s_filtered.txt"
 
+# Check if the filtered report is empty
+if [ ! -s ".${output_p}/kraken_report_16s_filtered.txt" ]; then
+  echo "###Filtered Kraken report is empty. No reads found after filtering###" >> ${log}
+  exit 1
+fi
+
 # Recalculate 16s abundances with filtered report
-bracken-build -l "$len_16s" -d ".${output_p}/${id}_16s_${run_time}-CON" -t ${cores} >> ${log} 2>&1
-bracken -d ".${output_p}/${id}_16s_${run_time}-CON" -i ".${output_p}/kraken_report_16s_filtered.txt" -o ".${output_p}/braken_16s.tsv" -r "$len_16s" -l S -t ${cores} >> ${log} 2>&1 || { sleep 5; echo "###failed here: Bracken matching raw and 16s con data ###" >> "${log}"; exit 1; }
+bracken-build -l 500 -d ".${output_p}/${id}_16s_${run_time}-CON" -t ${cores} >> ${log} 2>&1
+bracken -d ".${output_p}/${id}_16s_${run_time}-CON" -i ".${output_p}/kraken_report_16s_filtered.txt" -o ".${output_p}/braken_16s.tsv" -r 500 -l S -t ${cores} >> ${log} 2>&1 || { sleep 5; echo "###failed here: Bracken matching raw and 16s con data ###" >> "${log}"; exit 1; }
 
 # Log and update progress for Kraken2 analysis for 18S
 echo "10,RAW 18S reads being assigned to CON 18s (${percent_lost_18s}% lost; 0.00% ideal) reads in Kraken2" > $progress_file
@@ -354,7 +366,7 @@ echo "10,RAW 18S reads being assigned to CON 18s (${percent_lost_18s}% lost; 0.0
 # Generate CON database
 stdbuf -oL kraken2-build --add-to-library ".${output_e}/CON_taxonomy_rep_seq.fasta" --db ".${output_e}/${id}_18s_${run_time}-CON" >> ${log} 2>&1
 stdbuf -oL kraken2-build --db ".${output_e}/${id}_18s_${run_time}-CON" --download-taxonomy >> ${log} 2>&1
-stdbuf -oL kraken2-build --db ".${output_e}/${id}_18s_${run_time}-CON" --kmer-len 15 --minimizer-len 10 --minimizer-spaces 2 --threads ${cores} --build >> ${log} 2>&1 || { sleep 5; echo "###failed here: Kraken 18s database creation###" >> "${log}"; exit 1; }
+stdbuf -oL kraken2-build --db ".${output_e}/${id}_18s_${run_time}-CON" --kmer-len 35 --minimizer-len 31 --minimizer-spaces 6 --threads ${cores} --build >> ${log} 2>&1 || { sleep 5; echo "###failed here: Kraken 18s database creation###" >> "${log}"; exit 1; }
 
 # Classify 18S RAW Data with increased confidence and minimum hit groups
 stdbuf -oL kraken2 --db ".${output_e}/${id}_18s_${run_time}-CON" \
@@ -366,15 +378,28 @@ stdbuf -oL kraken2 --db ".${output_e}/${id}_18s_${run_time}-CON" \
   ".${output_s}/${id}_18s_bin.fasta" \
   >> ${log} 2>&1 || { sleep 5; echo "###failed here: Kraken matching raw and 18s con data ###" >> "${log}"; exit 1; }
 
-# Filter out problematic species from the Kraken2 report
+# Check the Kraken report before filtering
+if [ ! -s ".${output_e}/kraken_report_18s.txt" ]; then
+  echo "###Kraken report is empty. No reads classified###" >> ${log}
+  exit 1
+fi
+
+# Filter out problematic species from the Kraken2 report less aggressively
 grep -v "Puccinia suzutake" ".${output_e}/kraken_report_18s.txt" | grep -v "Pseudomonas amygdali" > ".${output_e}/kraken_report_18s_filtered.txt"
 
+# Check if the filtered report is empty
+if [ ! -s ".${output_e}/kraken_report_18s_filtered.txt" ]; then
+  echo "###Filtered Kraken report is empty. No reads found after filtering###" >> ${log}
+  exit 1
+fi
+
 # Recalculate 18s abundances with filtered report
-bracken-build -l "$len_18s" -d ".${output_e}/${id}_18s_${run_time}-CON" -t ${cores} >> ${log} 2>&1
-bracken -d ".${output_e}/${id}_18s_${run_time}-CON" -i ".${output_e}/kraken_report_18s_filtered.txt" -o ".${output_e}/braken_18s.tsv" -r "$len_18s" -l S -t ${cores} >> ${log} 2>&1 || { sleep 5; echo "###failed here: Bracken matching raw and 18s con data ###" >> "${log}"; exit 1; }
+bracken-build -l 500 -d ".${output_e}/${id}_18s_${run_time}-CON" -t ${cores} >> ${log} 2>&1
+bracken -d ".${output_e}/${id}_18s_${run_time}-CON" -i ".${output_e}/kraken_report_18s_filtered.txt" -o ".${output_e}/braken_18s.tsv" -r 500 -l S -t ${cores} >> ${log} 2>&1 || { sleep 5; echo "###failed here: Bracken matching raw and 18s con data ###" >> "${log}"; exit 1; }
 
 # Deactivate conda environment
 conda deactivate
+
 
 ### Normalisation, bias correction and merge
 # Log and update progress for normalization, bias correction, and merging data
