@@ -9,7 +9,11 @@ The pipeline begins with the config.sh script, which sets up essential parameter
 Key features of the pipeline include:
 
 Configuration Flexibility: Easily customizable parameters for hardware utilization, quality thresholds, and specific amplicon handling.
+
 Comprehensive Filtration: Scripts like mammalian_microbiome_inclusive.sh ensure only relevant microbiome sequences are included.
+
 Automated Database Updates: update-database.sh automates the integration of new sequence data into the existing database.
-End-to-End Analysis: The pipe_finished.sh script finalizes the pipeline, performing thorough processing from raw data to classified output.
+
+End-to-End Analysis: The pipe.sh script finalizes the pipeline, performing thorough processing from raw data to classified output.
+
 This pipeline is suitable for researchers looking to analyze large-scale microbiome data with a focus on both bacterial and eukaryotic components, ensuring high-quality, reproducible results. For detailed usage instructions and parameter adjustments, refer to the individual script documentation within the repository.
