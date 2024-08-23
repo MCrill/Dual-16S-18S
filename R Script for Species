@@ -1,0 +1,55 @@
+library(phyloseq)
+library(ggplot2)
+library(tidyverse)
+
+# Function to read TSV files and create a phyloseq object
+create_phyloseq_object <- function(file_path) {
+  # Read the TSV file
+  data <- read_delim(file_path, delim = "\t", col_names = TRUE)
+  
+  # Split taxonomy into individual ranks
+  tax_table <- data %>%
+    separate(taxonomy, into = c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species"), sep = ";", fill = "right") %>%
+    mutate(across(everything(), ~replace_na(.x, "Unclassified"))) %>%
+    select(Kingdom, Phylum, Class, Order, Family, Genus, Species)
+  
+  # Ensure unique row names
+  rownames(tax_table) <- make.unique(tax_table$Species, sep = "_")
+  
+  # Create abundance table and convert to percentage of total
+  total_abundance <- sum(data$abundance)
+  abundance_table <- as.matrix(data$abundance)
+  abundance_table <- (abundance_table / total_abundance) * 100
+  rownames(abundance_table) <- rownames(tax_table)
+  colnames(abundance_table) <- basename(file_path)
+  
+  # Convert taxonomy table to matrix
+  tax_table <- as.matrix(tax_table)
+  
+  # Create phyloseq object
+  physeq <- phyloseq(otu_table(abundance_table, taxa_are_rows = TRUE), tax_table(tax_table))
+  return(physeq)
+}
+
+# Function to plot data at species level
+plot_phyloseq_species <- function(physeq, output_file) {
+  p <- plot_bar(physeq, fill = "Species") + 
+    theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5)) +  # Set labels to horizontal
+    labs(title = "Species Level Relative Abundance", y = "Relative Abundance (%)") +
+    xlab("Sample")  # Optional: label for the x-axis
+  ggsave(output_file, p, width = 8, height = 12, dpi = 400)
+}
+
+# Paths to your files
+file_paths <- list.files("E:/MASTERS 2023/Research Project 2/Luke New Stuff/", pattern = "*.tsv", full.names = TRUE)
+
+# Loop over files, create phyloseq objects, and plot
+for (file in file_paths) {
+  try({
+    physeq <- create_phyloseq_object(file)
+    
+    # Plot at species level
+    species_output_file <- paste0(file, "_species_plot.png")
+    plot_phyloseq_species(physeq, species_output_file)
+  }, silent = TRUE)
+}
