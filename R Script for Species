@@ -40,16 +40,36 @@ file_paths <- list.files("E:/MASTERS 2023/Research Project 2/Luke New Stuff/", p
 all_species <- unique(unlist(lapply(file_paths, get_unique_species), use.names = FALSE))
 all_species <- all_species[!is.na(all_species)]  # Remove NA values if any
 
-# Generate a consistent color palette based on unique species
-generate_global_palette <- function(species_list) {
+# New list of hex color codes
+hex_color_codes <- c(
+  "#91b4a4", "#de34eb", "#2cf52b", "#aa59f1", "#6eea2e", "#e23fc5", "#57e958", "#c960df",
+  "#c2f03c", "#8574ea", "#f0d821", "#5a85e8", "#e3e044", "#e937a8", "#53be38", "#e463c6",
+  "#78ec78", "#ed3a8f", "#5be99f", "#f12d5e", "#3fe7c0", "#ef4421", "#6debe5", "#e7544c",
+  "#51bd69", "#d885e4", "#95c931", "#ae65be", "#cbe86b", "#c95198", "#4e9c32", "#d879c1",
+  "#9de080", "#e54871", "#369c66", "#e86a9d", "#adad26", "#449de4", "#eca821", "#5881c6",
+  "#e07619", "#3c98c2", "#db632b", "#62cee4", "#ec9533", "#89aae7", "#e2b940", "#9981cc",
+  "#93b24d", "#ec9fe7", "#688c38", "#d3ace7", "#898c29", "#5f86b7", "#d3c05a", "#878bbd",
+  "#a68a25", "#7bc5eb", "#ba8228", "#b4bfea", "#dde183", "#b471a1", "#d1f5a5", "#d36573",
+  "#7fd8ac", "#e88bb0", "#52c1b3", "#cb6c50", "#429ca7", "#e49156", "#7098b6", "#e9bb7d",
+  "#687e97", "#a58240", "#b3e1e0", "#ec9085", "#4b9083", "#eaa5c3", "#a7d498", "#8d7b9e",
+  "#89873c", "#d6b4d1", "#7fa970", "#a57489", "#cbe7c4", "#bd7d83", "#5b8f6b", "#e6aeb4",
+  "#81844b", "#e6d7d6", "#b27e5b", "#88a4b1", "#b4a969", "#b7acbc", "#dcd5a3", "#698688",
+  "#d6b099", "#91906a", "#99807b", "#8f937f"
+)
+
+# Generate a color palette using the predefined hex codes
+generate_global_palette <- function(species_list, color_codes) {
   n <- length(species_list)
-  colors <- colorRampPalette(brewer.pal(9, "Set3"))(n)
+  if (n > length(color_codes)) {
+    stop("The number of species exceeds the number of available colors.")
+  }
+  colors <- color_codes[1:n]
   names(colors) <- species_list
   return(colors)
 }
 
 # Create the global color palette for species
-global_species_colors <- generate_global_palette(all_species)
+global_species_colors <- generate_global_palette(all_species, hex_color_codes)
 
 # Function to create phyloseq object
 create_phyloseq_object <- function(file_path) {
@@ -90,7 +110,7 @@ plot_phyloseq_species <- function(physeq, output_file) {
     labs(title = "Species Level Relative Abundance", y = "Relative Abundance (%)") +
     xlab("Sample")
   
-  ggsave(output_file, p, width = 14, height = 12, dpi = 400)
+  ggsave(output_file, p, width = 18, height = 12, dpi = 400)
 }
 
 # Loop over files, create phyloseq objects, and plot
