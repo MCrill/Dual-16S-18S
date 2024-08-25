@@ -1,47 +1,117 @@
+# Load necessary libraries
 library(phyloseq)
 library(ggplot2)
 library(tidyverse)
+library(RColorBrewer)
 
-# Function to read TSV files and create a phyloseq object
+# Function to read TSV files and extract unique genera with error handling
+get_unique_genera <- function(file_path) {
+  tryCatch({
+    # Check if the file is a .tsv file
+    if (grepl("\\.tsv$", file_path)) {
+      # Read the TSV file with explicit encoding
+      data <- read_delim(file_path, delim = "\t", col_names = TRUE, locale = locale(encoding = "UTF-8"), show_col_types = FALSE)
+      
+      # Check for parsing problems
+      if (any(problems(data)$row)) {
+        message(paste("Parsing issues in file:", file_path))
+        print(problems(data))  # Display detailed parsing problems
+      }
+      
+      # Split taxonomy into individual ranks and extract genera
+      unique_genera <- data %>%
+        separate(taxonomy, into = c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species"), sep = ";", fill = "right") %>%
+        pull(Genus) %>%
+        unique()
+      
+      return(unique_genera)
+    } else {
+      message(sprintf("Skipping non-TSV file: %s", file_path))
+      return(NULL)
+    }
+  }, error = function(e) {
+    message(sprintf("Error reading file: %s. Error message: %s", file_path, e$message))
+    return(NULL)  # Return NULL if there's an error
+  })
+}
+
+# Compile a list of all unique genera from all files
+file_paths <- list.files("E:/MASTERS 2023/Research Project 2/Luke New Stuff/", pattern = "\\.tsv$", full.names = TRUE)
+all_genera <- unique(unlist(lapply(file_paths, get_unique_genera), use.names = FALSE))
+all_genera <- all_genera[!is.na(all_genera)]  # Remove NA values if any
+
+# New list of hex color codes
+hex_color_codes <- c(
+  "#91b4a4", "#de34eb", "#2cf52b", "#aa59f1", "#6eea2e", "#e23fc5", "#57e958", "#c960df",
+  "#c2f03c", "#8574ea", "#f0d821", "#5a85e8", "#e3e044", "#e937a8", "#53be38", "#e463c6",
+  "#78ec78", "#ed3a8f", "#5be99f", "#f12d5e", "#3fe7c0", "#ef4421", "#6debe5", "#e7544c",
+  "#51bd69", "#d885e4", "#95c931", "#ae65be", "#cbe86b", "#c95198", "#4e9c32", "#d879c1",
+  "#9de080", "#e54871", "#369c66", "#e86a9d", "#adad26", "#449de4", "#eca821", "#5881c6",
+  "#e07619", "#3c98c2", "#db632b", "#62cee4", "#ec9533", "#89aae7", "#e2b940", "#9981cc",
+  "#93b24d", "#ec9fe7", "#688c38", "#d3ace7", "#898c29", "#5f86b7", "#d3c05a", "#878bbd",
+  "#a68a25", "#7bc5eb", "#ba8228", "#b4bfea", "#dde183", "#b471a1", "#d1f5a5", "#d36573",
+  "#7fd8ac", "#e88bb0", "#52c1b3", "#cb6c50", "#429ca7", "#e49156", "#7098b6", "#e9bb7d",
+  "#687e97", "#a58240", "#b3e1e0", "#ec9085", "#4b9083", "#eaa5c3", "#a7d498", "#8d7b9e",
+  "#89873c", "#d6b4d1", "#7fa970", "#a57489", "#cbe7c4", "#bd7d83", "#5b8f6b", "#e6aeb4",
+  "#81844b", "#e6d7d6", "#b27e5b", "#88a4b1", "#b4a969", "#b7acbc", "#dcd5a3", "#698688",
+  "#d6b099", "#91906a", "#99807b", "#8f937f"
+)
+
+# Generate a color palette using the predefined hex codes
+generate_global_palette <- function(genera_list, color_codes) {
+  n <- length(genera_list)
+  if (n > length(color_codes)) {
+    stop("The number of genera exceeds the number of available colors.")
+  }
+  colors <- color_codes[1:n]
+  names(colors) <- genera_list
+  return(colors)
+}
+
+# Create the global color palette for genera
+global_genera_colors <- generate_global_palette(all_genera, hex_color_codes)
+
+# Function to create phyloseq object
 create_phyloseq_object <- function(file_path) {
-  # Read the TSV file
-  data <- read_delim(file_path, delim = "\t", col_names = TRUE)
+  data <- read_delim(file_path, delim = "\t", col_names = TRUE, locale = locale(encoding = "UTF-8"), show_col_types = FALSE)
   
-  # Split taxonomy into individual ranks
   tax_table <- data %>%
     separate(taxonomy, into = c("Kingdom", "Phylum", "Class", "Order", "Family", "Genus", "Species"), sep = ";", fill = "right") %>%
     mutate(across(everything(), ~replace_na(.x, "Unclassified"))) %>%
     select(Kingdom, Phylum, Class, Order, Family, Genus, Species)
   
-  # Ensure unique row names based on genus level
   rownames(tax_table) <- make.unique(tax_table$Genus, sep = "_")
   
-  # Create abundance table and convert to percentage of total
   total_abundance <- sum(data$abundance)
   abundance_table <- as.matrix(data$abundance)
   abundance_table <- (abundance_table / total_abundance) * 100
   rownames(abundance_table) <- rownames(tax_table)
   colnames(abundance_table) <- basename(file_path)
   
-  # Convert taxonomy table to matrix
   tax_table <- as.matrix(tax_table)
   
-  # Create phyloseq object
   physeq <- phyloseq(otu_table(abundance_table, taxa_are_rows = TRUE), tax_table(tax_table))
   return(physeq)
 }
 
-# Function to plot data at genus level
+# Function to plot data at genus level using the global color palette
 plot_phyloseq_genus <- function(physeq, output_file) {
-  p <- plot_bar(physeq, fill = "Genus") + 
-    theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5)) +  # Set labels to horizontal
+  physeq_df <- psmelt(physeq)
+  
+  # Sort data by Abundance in descending order
+  physeq_df <- physeq_df %>%
+    arrange(desc(Abundance))
+  
+  # Plot using global color palette
+  p <- ggplot(physeq_df, aes(x = Sample, y = Abundance, fill = Genus)) +
+    geom_bar(stat = "identity", color = "black", size = 0.3) +
+    scale_fill_manual(values = global_genera_colors) +  # Use global colors
+    theme(axis.text.x = element_text(angle = 0, hjust = 0.5, vjust = 0.5)) +
     labs(title = "Genus Level Relative Abundance", y = "Relative Abundance (%)") +
-    xlab("Sample")  # Optional: label for the x-axis
-  ggsave(output_file, p, width = 6, height = 8, dpi = 300)
+    xlab("Sample")
+  
+  ggsave(output_file, p, width = 8, height = 12, dpi = 400)
 }
-
-# Paths to your files
-file_paths <- list.files("E:/MASTERS 2023/Research Project 2/Luke New Stuff/", pattern = "*.tsv", full.names = TRUE)
 
 # Loop over files, create phyloseq objects, and plot
 for (file in file_paths) {
@@ -53,3 +123,6 @@ for (file in file_paths) {
     plot_phyloseq_genus(physeq, genus_output_file)
   }, silent = TRUE)
 }
+
+# Output message indicating completion
+message("Processing and plotting completed for all .tsv files.")
