@@ -16,4 +16,6 @@ Automated Database Updates: update-database.sh automates the integration of new 
 
 End-to-End Analysis: The pipe.sh script finalizes the pipeline, performing thorough processing from raw data to classified output.
 
+Custom R scripts to visualise the blastn variation of the script which accurately maps the relative abundances of both genera and species from unknown origin.
+
 This pipeline is suitable for researchers looking to analyze large-scale microbiome data with a focus on both bacterial and eukaryotic components, ensuring high-quality, reproducible results. For detailed usage instructions and parameter adjustments, refer to the individual script documentation within the repository.
